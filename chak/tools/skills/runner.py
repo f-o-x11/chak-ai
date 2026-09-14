@@ -68,13 +68,22 @@ class PyRunner(ScriptRunner):
         )
 
     def _resolve_python(self, skill_dir: Path) -> Path:
+        # NOTE: use ``.absolute()`` (not ``.resolve()``) for the interpreter
+        # path. On Unix, ``.venv/bin/python`` created by ``uv venv`` or
+        # ``python -m venv`` is a symlink to the base interpreter. Resolving
+        # the symlink would launch the base Python directly, so ``pyvenv.cfg``
+        # is not discovered next to ``sys.executable`` and the venv's
+        # site-packages become invisible (PEP 405). ``.absolute()`` only makes
+        # the path absolute without following symlinks, which preserves the
+        # venv activation contract. The subsequent ``exists()``/``is_file()``
+        # checks still follow symlinks via stat(), which is what we want.
         if self.python:
-            python_path = Path(self.python).expanduser().resolve()
+            python_path = Path(self.python).expanduser().absolute()
         else:
             win_python = skill_dir / ".venv" / "Scripts" / "python.exe"
             posix_python = skill_dir / ".venv" / "bin" / "python"
             python_path = win_python if win_python.exists() else posix_python
-            python_path = python_path.resolve()
+            python_path = python_path.absolute()
 
         if not python_path.exists():
             raise FileNotFoundError(
@@ -102,7 +111,9 @@ class BoundPyRunner:
     ):
         self._skill_name = skill_name
         self._skill_dir = skill_dir.resolve()
-        self._python = python.resolve()
+        # See PyRunner._resolve_python: keep the interpreter path as-is
+        # (symlink-preserving) so venv activation still works on Unix.
+        self._python = python.absolute()
         self._timeout = timeout
         self._allowed_dirs = tuple(allowed_dirs)
         self._allow_arbitrary_code = allow_arbitrary_code

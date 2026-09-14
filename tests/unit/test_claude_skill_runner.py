@@ -187,6 +187,55 @@ def test_pyrunner_auto_discovers_skill_venv(tmp_path):
     assert runner.name == "calc__run_python"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="POSIX symlink semantics")
+def test_pyrunner_preserves_symlinked_venv_python_explicit(tmp_path):
+    """Regression: explicit ``python=`` must not resolve symlinks.
+
+    ``uv venv`` / ``python -m venv`` create ``.venv/bin/python`` as a symlink
+    to the base interpreter. If PyRunner resolves it, the subprocess is
+    launched with the base Python, ``pyvenv.cfg`` is not found adjacent to
+    ``sys.executable``, and every package installed in the venv becomes
+    invisible (PEP 405).
+    """
+    base_py = tmp_path / "base" / "python3"
+    base_py.parent.mkdir(parents=True)
+    base_py.write_text("#!/bin/sh\necho base\n", encoding="utf-8")
+    base_py.chmod(0o755)
+
+    venv_py = tmp_path / "skill" / ".venv" / "bin" / "python"
+    venv_py.parent.mkdir(parents=True)
+    venv_py.symlink_to(base_py)
+
+    resolved = PyRunner(python=str(venv_py))._resolve_python(tmp_path / "skill")
+
+    assert resolved == venv_py.absolute()
+    assert resolved.is_symlink()
+
+    bound = PyRunner(python=str(venv_py)).bind("skill", tmp_path / "skill")
+    assert bound._python == venv_py.absolute()
+    assert bound._python.is_symlink()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX symlink semantics")
+def test_pyrunner_preserves_symlinked_venv_python_autodiscovery(tmp_path):
+    """Same guarantee for the auto-discovery branch (no ``python=`` passed)."""
+    skill_dir = _write_skill(tmp_path)
+
+    base_py = tmp_path / "base" / "python3"
+    base_py.parent.mkdir(parents=True)
+    base_py.write_text("#!/bin/sh\necho base\n", encoding="utf-8")
+    base_py.chmod(0o755)
+
+    venv_py = skill_dir / ".venv" / "bin" / "python"
+    venv_py.parent.mkdir(parents=True)
+    venv_py.symlink_to(base_py)
+
+    bound = PyRunner().bind("calc", skill_dir)
+
+    assert bound._python == venv_py.absolute()
+    assert bound._python.is_symlink()
+
+
 def test_tool_manager_rejects_companion_tool_name_conflict(tmp_path):
     skill = ClaudeSkill(
         str(_write_skill(tmp_path)),
