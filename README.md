@@ -776,6 +776,20 @@ Supports three transport types:
 - **stdio**: Local MCP servers
 - **HTTP**: HTTP-based MCP services
 
+For free web search and page fetching with no account, API key, or LLM required,
+run the [Parallel Search MCP example](examples/parallel_search_mcp.py):
+
+```bash
+python -m pip install -e . "mcp>=1.9,<2"
+python examples/parallel_search_mcp.py search "Python asyncio TaskGroup guide"
+python examples/parallel_search_mcp.py fetch https://docs.python.org/3/library/asyncio-task.html
+```
+
+It uses `Server.tools()` and `MCPTool.call()` over Streamable HTTP. Anonymous
+search uses Fast mode, and the free tier has lower rate limits. See the
+[Parallel Search MCP setup guide](https://docs.parallel.ai/integrations/mcp/search-mcp).
+This example leaves the built-in `Search` tool and existing providers unchanged.
+
 ### Mix Everything
 
 Functions, objects, and MCP tools work together:
