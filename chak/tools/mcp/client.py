@@ -139,7 +139,7 @@ class MCPClient:
         headers = self.config.get("headers", {})
         headers = self._expand_env_vars(headers)
         
-        async with streamablehttp_client(url) as (read, write, _):
+        async with streamablehttp_client(url, headers=headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.list_tools()
@@ -236,7 +236,7 @@ class MCPClient:
         headers = self.config.get("headers", {})
         headers = self._expand_env_vars(headers)
         
-        async with streamablehttp_client(url) as (read, write, _):
+        async with streamablehttp_client(url, headers=headers) as (read, write, _):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 result = await session.call_tool(tool_name, arguments=arguments)
